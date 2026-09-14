@@ -133,8 +133,9 @@ jobs:
           cat android/twa-manifest.json
 
       # 用 update 命令从 twa-manifest.json 生成 Android 项目(无交互)
+      # 注意:新版 Bubblewrap 用 --manifest 指定 twa-manifest.json 所在目录,--directory 已无效
       - name: Generate Android project (bubblewrap update)
-        run: bubblewrap update --directory android --skipVersionUpgrade --yes
+        run: bubblewrap update --manifest android --skipVersionUpgrade --yes
 
       # 用 build 命令编译 APK(密码通过环境变量传入,避免 prompt)
       - name: Build APK
@@ -143,7 +144,7 @@ jobs:
           BUBBLEWRAP_KEY_PASSWORD: changeit
         run: |
           bubblewrap build \
-            --directory android \
+            --manifest android \
             --skipPwaValidation \
             --signing-key-path ${{ github.workspace }}/release.keystore \
             --signing-key-alias release \
