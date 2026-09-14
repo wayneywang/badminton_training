@@ -73,10 +73,12 @@ jobs:
             -keypass changeit \
             -dname "CN=Badminton Training, OU=Dev, O=Personal, L=Beijing, ST=Beijing, C=CN"
 
-      # 初始化 TWA 项目。--yes 跳过所有交互问题使用默认值。
+      # 初始化 TWA 项目。
+      # 前面 setup-java 已装 JDK 17,这里拒绝 Bubblewrap 再次安装 JDK(选 No)。
+      # 用管道喂答案绕开交互 prompt;--yes 跳过其余问题使用默认值。
       - name: Init TWA project
         run: |
-          bubblewrap init \
+          printf 'No\n' | bubblewrap init \
             --manifest "${{ steps.deploy.outputs.page_url }}manifest.json" \
             --directory android \
             --yes
