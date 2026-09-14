@@ -1,12 +1,10 @@
 name: Build Android APK
 
-# 触发条件:推送到 main/master 自动构建,或手动触发
 on:
   push:
     branches: [main, master]
   workflow_dispatch:
 
-# Pages 部署 + artifact 上传所需权限
 permissions:
   contents: read
   pages: write
@@ -53,10 +51,7 @@ jobs:
         with:
           packages: 'tools platform-tools build-tools;34.0.0'
 
-      # ---------- 第 3 阶段:预写 Bubblewrap 配置,绕过所有交互 prompt ----------
-      # Bubblewrap 首次运行会问 "Do you want to install JDK?" 和 "Path to JDK",
-      # 但 stdin 非 TTY 时 inquirer 直接 exit 130。预先写好 ~/.bubblewrap/config.json
-      # 让 Bubblewrap 读到配置后跳过这些问题。
+      # ---------- 第 3 阶段:预写 Bubblewrap 配置绕过交互 prompt ----------
       - name: Pre-write Bubblewrap config
         run: |
           mkdir -p "$HOME/.bubblewrap"
@@ -77,10 +72,6 @@ jobs:
       - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
 
-      - name: Verify Bubblewrap config (doctor)
-        run: bubblewrap doctor || true
-
-      # 生成自签名 keystore 用于 APK 签名(可直接安装,非 Play Store 发布用)
       - name: Generate signing keystore
         run: |
           keytool -genkeypair -v \
@@ -92,21 +83,68 @@ jobs:
             -keypass changeit \
             -dname "CN=Badminton Training, OU=Dev, O=Personal, L=Beijing, ST=Beijing, C=CN"
 
-      # ---------- 第 4 阶段:用 Bubblewrap 生成 TWA APK ----------
-      # 配置已预写,JDK prompt 已绕过。
-      # 预先创建 android 目录,避免 bubblewrap 问 "Directory does not exist. Create?"
-      - name: Init TWA project
+      # ---------- 第 4 阶段:手写 twa-manifest.json + 用 update 生成 Android 项目 ----------
+      # 跳过 `bubblewrap init`(它会问 Domain/Name/Theme color 等交互 prompt,
+      # 非 TTY 环境下 inquirer 直接 exit 130)。
+      # 直接手写完整的 twa-manifest.json,然后用 `bubblewrap update` 生成 Android 项目文件。
+      - name: Create twa-manifest.json
         run: |
           mkdir -p android
-          bubblewrap init \
-            --manifest "${{ steps.deploy.outputs.page_url }}manifest.json" \
-            --directory android \
-            --yes
+          cat > android/twa-manifest.json <<'EOF'
+          {
+            "packageId": "com.wayneywang.badminton_training",
+            "host": "wayneywang.github.io",
+            "name": "羽毛球双打体能训练",
+            "launcherName": "羽训",
+            "themeColor": "#1a73e8",
+            "themeColorDark": "#1a73e8",
+            "navigationColor": "#1a73e8",
+            "navigationColorDark": "#000000",
+            "navigationDividerColor": "#1a73e8",
+            "navigationDividerColorDark": "#000000",
+            "backgroundColor": "#ffffff",
+            "enableNotifications": true,
+            "splashScreenFadeOutDuration": 300,
+            "signingKey": {
+              "path": "/home/runner/work/badminton_training/badminton_training/release.keystore",
+              "alias": "release"
+            },
+            "appVersion": "1.0.0",
+            "appVersionCode": 1,
+            "shortName": "羽训",
+            "fullScopeUrl": "https://wayneywang.github.io/badminton_training/",
+            "startUrl": "/badminton_training/index.html",
+            "iconUrl": "https://wayneywang.github.io/badminton_training/icon.svg",
+            "webManifestUrl": "https://wayneywang.github.io/badminton_training/manifest.json",
+            "display": "standalone",
+            "orientation": "portrait",
+            "isChromeOSOnly": false,
+            "isMetaQuest": false,
+            "enableSiteSettingsShortcut": false,
+            "fallbackType": "customtabs",
+            "features": [],
+            "alphaDependencies": { "enabled": false },
+            "generatorApp": "bubblewrap-cli",
+            "shortcuts": [],
+            "retainedBundles": []
+          }
+          EOF
+          echo "--- twa-manifest.json ---"
+          cat android/twa-manifest.json
 
+      # 用 update 命令从 twa-manifest.json 生成 Android 项目(无交互)
+      - name: Generate Android project (bubblewrap update)
+        run: bubblewrap update --directory android --skipVersionUpgrade --yes
+
+      # 用 build 命令编译 APK(密码通过环境变量传入,避免 prompt)
       - name: Build APK
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: changeit
+          BUBBLEWRAP_KEY_PASSWORD: changeit
         run: |
           bubblewrap build \
             --directory android \
+            --skipPwaValidation \
             --signing-key-path ${{ github.workspace }}/release.keystore \
             --signing-key-alias release \
             --signing-key-password changeit \
