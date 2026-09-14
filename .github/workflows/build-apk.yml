@@ -73,13 +73,17 @@ jobs:
             -keypass changeit \
             -dname "CN=Badminton Training, OU=Dev, O=Personal, L=Beijing, ST=Beijing, C=CN"
 
-      # 初始化 TWA 项目。
-      # 前面 setup-java 已装 JDK 17,这里拒绝 Bubblewrap 再次安装 JDK(选 No),
-      # 并把已装 JDK 路径(=JAVA_HOME)喂给第二个 prompt。
-      # --yes 跳过其余问题使用默认值。
+      # 预先把 JDK 路径写入 Bubblewrap 配置,绕过 init 时的交互 prompt。
+      # Bubblewrap 在没有配置 JDK 路径时会问 "Do you want to install JDK?"
+      # 和 "Path to your existing JDK 17:",管道喂答案会因 stdin 非 TTY 失败。
+      # 用 updateConfig 把 JDK 路径写进配置,init 不会再问。
+      - name: Configure Bubblewrap JDK path
+        run: bubblewrap updateConfig --jdkPath "$JAVA_HOME"
+
+      # 初始化 TWA 项目。--yes 跳过其余交互问题使用默认值。
       - name: Init TWA project
         run: |
-          printf 'No\n%s\n' "$JAVA_HOME" | bubblewrap init \
+          bubblewrap init \
             --manifest "${{ steps.deploy.outputs.page_url }}manifest.json" \
             --directory android \
             --yes
