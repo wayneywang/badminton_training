@@ -93,9 +93,11 @@ jobs:
             -dname "CN=Badminton Training, OU=Dev, O=Personal, L=Beijing, ST=Beijing, C=CN"
 
       # ---------- 第 4 阶段:用 Bubblewrap 生成 TWA APK ----------
-      # 配置已预写,--yes 跳过其余交互问题使用默认值
+      # 配置已预写,JDK prompt 已绕过。
+      # 预先创建 android 目录,避免 bubblewrap 问 "Directory does not exist. Create?"
       - name: Init TWA project
         run: |
+          mkdir -p android
           bubblewrap init \
             --manifest "${{ steps.deploy.outputs.page_url }}manifest.json" \
             --directory android \
