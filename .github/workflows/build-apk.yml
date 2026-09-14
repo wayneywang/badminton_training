@@ -16,7 +16,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 关联 Pages 环境,便于权限隔离
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -25,8 +24,6 @@ jobs:
         uses: actions/checkout@v4
 
       # ---------- 第 1 阶段:部署 PWA 到 GitHub Pages ----------
-      # Bubblewrap 必须能从公网 HTTPS 拉取 manifest.json,
-      # 因此先把整个 PWA 部署到 Pages,再让 Bubblewrap 用这个 URL。
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
@@ -42,15 +39,35 @@ jobs:
       - name: Show Pages URL
         run: |
           echo "PWA 已部署到: ${{ steps.deploy.outputs.page_url }}"
-          # 给 Pages CDN 一点时间生效,避免 bubblewrap fetch 失败
           sleep 15
 
-      # ---------- 第 2 阶段:用 Bubblewrap 生成 TWA APK ----------
+      # ---------- 第 2 阶段:准备 JDK + Android SDK ----------
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'tools platform-tools build-tools;34.0.0'
+
+      # ---------- 第 3 阶段:预写 Bubblewrap 配置,绕过所有交互 prompt ----------
+      # Bubblewrap 首次运行会问 "Do you want to install JDK?" 和 "Path to JDK",
+      # 但 stdin 非 TTY 时 inquirer 直接 exit 130。预先写好 ~/.bubblewrap/config.json
+      # 让 Bubblewrap 读到配置后跳过这些问题。
+      - name: Pre-write Bubblewrap config
+        run: |
+          mkdir -p "$HOME/.bubblewrap"
+          cat > "$HOME/.bubblewrap/config.json" <<EOF
+          {
+            "jdkPath": "$JAVA_HOME",
+            "androidSdkPath": "$ANDROID_SDK_ROOT"
+          }
+          EOF
+          echo "--- config.json ---"
+          cat "$HOME/.bubblewrap/config.json"
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
@@ -60,8 +77,10 @@ jobs:
       - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
 
-      # 生成一个自签名 keystore 用于 APK 签名
-      # (不是 release 正式签名,但生成的 APK 可直接安装)
+      - name: Verify Bubblewrap config (doctor)
+        run: bubblewrap doctor || true
+
+      # 生成自签名 keystore 用于 APK 签名(可直接安装,非 Play Store 发布用)
       - name: Generate signing keystore
         run: |
           keytool -genkeypair -v \
@@ -73,14 +92,8 @@ jobs:
             -keypass changeit \
             -dname "CN=Badminton Training, OU=Dev, O=Personal, L=Beijing, ST=Beijing, C=CN"
 
-      # 预先把 JDK 路径写入 Bubblewrap 配置,绕过 init 时的交互 prompt。
-      # Bubblewrap 在没有配置 JDK 路径时会问 "Do you want to install JDK?"
-      # 和 "Path to your existing JDK 17:",管道喂答案会因 stdin 非 TTY 失败。
-      # 用 updateConfig 把 JDK 路径写进配置,init 不会再问。
-      - name: Configure Bubblewrap JDK path
-        run: bubblewrap updateConfig --jdkPath "$JAVA_HOME"
-
-      # 初始化 TWA 项目。--yes 跳过其余交互问题使用默认值。
+      # ---------- 第 4 阶段:用 Bubblewrap 生成 TWA APK ----------
+      # 配置已预写,--yes 跳过其余交互问题使用默认值
       - name: Init TWA project
         run: |
           bubblewrap init \
@@ -88,7 +101,6 @@ jobs:
             --directory android \
             --yes
 
-      # 构建 APK,用刚才生成的 keystore 签名
       - name: Build APK
         run: |
           bubblewrap build \
@@ -98,12 +110,10 @@ jobs:
             --signing-key-password changeit \
             --keystore-password changeit
 
-      # 上传 APK 作为 artifact,可从 Actions 运行页面下载
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: badminton-training-apk
-          # bubblewrap build 默认输出文件名
           path: android/app-release-signed.apk
           retention-days: 30
           if-no-files-found: error
