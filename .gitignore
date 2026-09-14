@@ -17,3 +17,6 @@ npm-debug.log*
 android-app/
 *.keystore
 release.keystore
+
+# PWABuilder 解压目录
+apk-extracted/
