@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#1a73e8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="羽训">
+  <title>羽毛球双打体能训练</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 顶部状态栏 -->
+  <header id="app-header">
+    <h1 id="view-title">今日训练</h1>
+    <button id="theme-toggle" class="icon-btn" aria-label="切换主题" title="切换主题">🌗</button>
+  </header>
+
+  <main id="app-main">
+    <!-- 今日视图 -->
+    <section id="view-today" class="view active">
+      <div class="date-card">
+        <div id="today-date" class="date-text">—</div>
+        <div id="today-weekday" class="weekday-text">—</div>
+      </div>
+      <div id="today-plan" class="plan-card"></div>
+      <div class="today-actions">
+        <button id="start-session-btn" class="big-btn">开始训练</button>
+      </div>
+      <div id="today-checklist" class="checklist"></div>
+      <div id="pwa-install-banner" class="install-banner hidden">
+        <div class="install-text">📱 安装到主屏幕，离线可用、闹钟更可靠</div>
+        <button id="install-btn" class="install-btn">安装</button>
+        <button id="dismiss-install-btn" class="dismiss-btn">✕</button>
+      </div>
+      <div id="alarm-status" class="alarm-status"></div>
+    </section>
+
+    <!-- 课表视图 -->
+    <section id="view-schedule" class="view">
+      <div class="week-tabs">
+        <button class="week-tab" data-week="1">第1周</button>
+        <button class="week-tab" data-week="2">第2周</button>
+        <button class="week-tab" data-week="3">第3周</button>
+        <button class="week-tab" data-week="4">第4周</button>
+        <button class="week-tab" data-week="pre">赛前周</button>
+      </div>
+      <div id="schedule-content"></div>
+    </section>
+
+    <!-- 演示库视图 -->
+    <section id="view-library" class="view">
+      <div class="library-filter">
+        <button class="filter-btn active" data-cat="all">全部</button>
+        <button class="filter-btn" data-cat="跑动">跑动</button>
+        <button class="filter-btn" data-cat="间歇">间歇</button>
+        <button class="filter-btn" data-cat="核心">核心</button>
+        <button class="filter-btn" data-cat="哑铃">哑铃</button>
+        <button class="filter-btn" data-cat="自重">自重</button>
+      </div>
+      <div id="library-content" class="library-grid"></div>
+    </section>
+
+    <!-- 进度视图 -->
+    <section id="view-progress" class="view">
+      <div id="progress-summary" class="progress-summary"></div>
+      <div id="progress-grid" class="progress-grid"></div>
+    </section>
+
+    <!-- 设置视图 -->
+    <section id="view-settings" class="view">
+      <div class="settings-section">
+        <h3>⏰ 闹钟提醒</h3>
+        <div class="setting-row">
+          <label for="alarm-morning-toggle">早上训练提醒</label>
+          <input type="checkbox" id="alarm-morning-toggle" class="toggle">
+        </div>
+        <div class="setting-row">
+          <label for="alarm-morning-time">早闹钟时间</label>
+          <input type="time" id="alarm-morning-time" value="07:00">
+        </div>
+        <div class="setting-row">
+          <label for="alarm-evening-toggle">晚间哑铃提醒</label>
+          <input type="checkbox" id="alarm-evening-toggle" class="toggle">
+        </div>
+        <div class="setting-row">
+          <label for="alarm-evening-time">晚闹钟时间</label>
+          <input type="time" id="alarm-evening-time" value="20:00">
+        </div>
+        <button id="test-alarm-btn" class="action-btn">测试闹钟（1分钟后）</button>
+        <div id="alarm-note" class="alarm-note">
+          <strong>提示：</strong>建议用手机原生时钟做主闹钟，本 app 做二次提醒与训练引导。
+          安卓 Chrome 已"添加到主屏幕"后可在后台/熄屏弹出通知。
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>🔊 训练提示音</h3>
+        <div class="setting-row">
+          <label for="voice-toggle">语音播报</label>
+          <input type="checkbox" id="voice-toggle" class="toggle" checked>
+        </div>
+        <div class="setting-row">
+          <label for="beep-toggle">蜂鸣提示音</label>
+          <input type="checkbox" id="beep-toggle" class="toggle" checked>
+        </div>
+        <button id="test-beep-btn" class="action-btn">测试蜂鸣音</button>
+      </div>
+      <div class="settings-section">
+        <h3>🎨 主题</h3>
+        <div class="setting-row">
+          <label for="theme-select">主题模式</label>
+          <select id="theme-select">
+            <option value="auto">自动</option>
+            <option value="light">亮色（户外推荐）</option>
+            <option value="dark">暗色（晚间推荐）</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>💾 数据</h3>
+        <button id="export-btn" class="action-btn">导出进度</button>
+        <button id="import-btn" class="action-btn">导入进度</button>
+        <input type="file" id="import-file" accept="application/json" class="hidden">
+        <button id="reset-btn" class="action-btn danger">清空进度</button>
+      </div>
+      <div class="settings-section about">
+        <h3>ℹ️ 关于</h3>
+        <p>羽毛球双打体能训练 PWA v1.0</p>
+        <p>目标：10月17日双打比赛</p>
+        <p>周期：9月14日 – 10月17日</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- 训练会话全屏覆盖层 -->
+  <div id="session-overlay" class="session-overlay hidden">
+    <header class="session-header">
+      <button id="session-exit-btn" class="icon-btn" aria-label="退出训练">✕</button>
+      <h2 id="session-title">训练中</h2>
+      <div id="session-progress" class="session-progress">1 / 8</div>
+    </header>
+    <div id="session-body" class="session-body"></div>
+    <div id="session-controls" class="session-controls"></div>
+  </div>
+
+  <!-- 底部导航 -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" data-view="today">📅<span>今日</span></button>
+    <button class="nav-btn" data-view="schedule">📋<span>课表</span></button>
+    <button class="nav-btn" data-view="library">🎯<span>演示</span></button>
+    <button class="nav-btn" data-view="progress">📈<span>进度</span></button>
+    <button class="nav-btn" data-view="settings">⚙️<span>设置</span></button>
+  </nav>
+
+  <!-- 动作演示模态层 -->
+  <div id="demo-modal" class="demo-modal hidden">
+    <div class="demo-modal-content">
+      <header class="demo-modal-header">
+        <h3 id="demo-modal-title">动作演示</h3>
+        <button id="demo-modal-close" class="icon-btn">✕</button>
+      </header>
+      <div id="demo-modal-svg" class="demo-modal-svg"></div>
+      <div id="demo-modal-info" class="demo-modal-info"></div>
+      <div class="demo-controls">
+        <button id="demo-play-btn" class="action-btn">播放</button>
+        <button id="demo-slow-btn" class="action-btn">慢放</button>
+        <button id="demo-pause-btn" class="action-btn">暂停</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/demo.js"></script>
+  <script src="js/timer.js"></script>
+  <script src="js/alarm.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# IDE / 工具内部目录
+.trae/
+.vscode/
+.idea/
+
+# 系统/编辑器垃圾
+.DS_Store
+Thumbs.db
+*.swp
+*.log
+
+# Node 临时
+node_modules/
+npm-debug.log*
+
+# 构建产物
+android-app/
+*.keystore
+release.keystore
